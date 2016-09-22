@@ -1,4 +1,4 @@
-'''
+"""
 Venn diagram plotting routines.
 Math for computing with venn diagram regions.
 
@@ -24,7 +24,7 @@ Note that the regions of an up to 3-circle Venn diagram may be of the following 
 We create each of the regions by starting with a circle, and then either intersecting or subtracting the second and the third circles.
 The classes below implement the region representation, the intersection/subtraction procedures and the conversion to matplotlib patches.
 In addition, each region type has a "label positioning" procedure assigned.
-'''
+"""
 import warnings
 import numpy as np
 from matplotlib.patches import Circle, PathPatch, Path
@@ -33,17 +33,21 @@ from matplotlib_venn._math import tol, circle_circle_intersection, vector_angle_
 from matplotlib_venn._math import point_in_circle, box_product
 from matplotlib_venn._arc import Arc
 
+
 class VennRegionException(Exception):
     pass
 
+
 class VennRegion(object):
-    '''
-    This is a superclass of a Venn diagram region, defining the interface that has to be supported by the different region types.
-    '''
+    """
+    This is a superclass of a Venn diagram region, defining the interface
+    that has to be supported by the different region types.
+    """
     def subtract_and_intersect_circle(self, center, radius):
-        '''
+        """
         Given a circular region, compute two new regions:
-        one obtained by subtracting the circle from this region, and another obtained by intersecting the circle with the region.
+        one obtained by subtracting the circle from this region, and another obtained by
+        intersecting the circle with the region.
         
         In all implementations it is assumed that the circle to be subtracted is not completely within
         the current region without touching its borders, i.e. it will not form a "hole" when subtracted.
@@ -53,32 +57,34 @@ class VennRegion(object):
            radius (float):  A nonnegative number, the radius of the circle.
            
         Returns:
-           a list with two elements - the result of subtracting the circle, and the result of intersecting with the circle.
-        '''
+           a list with two elements - the result of subtracting the circle,
+           and the result of intersecting with the circle.
+        """
         raise NotImplementedError("Method not implemented")
-    
-    
+
     def label_position(self):
-        '''Compute the position of a label for this region and return it as a 1x2 numpy array (x, y).
-        May return None if label is not applicable.'''
+        """Compute the position of a label for this region and return it as a 1x2 numpy array (x, y).
+        May return None if label is not applicable."""
         raise NotImplementedError("Method not implemented")
 
     def size(self):
-        '''Return a number, representing the size of the region. It is not important that the number would be a precise
-        measurement, as long as sizes of various regions can be compared to choose the largest one.'''
+        """Return a number, representing the size of the region. It is not important that the number would be a precise
+        measurement, as long as sizes of various regions can be compared to choose the largest one."""
         raise NotImplementedError("Method not implemented")
     
     def make_patch(self):
-        '''Create a matplotlib patch object, corresponding to this region. May return None if no patch has to be created.'''
+        """Create a matplotlib patch object, corresponding to this region.
+        May return None if no patch has to be created."""
         raise NotImplementedError("Method not implemented")
 
     def verify(self):
-        '''Self-verification routine for purposes of testing. Raises a VennRegionException if some inconsistencies of internal representation
-        are discovered.'''
+        """Self-verification routine for purposes of testing. Raises a
+        VennRegionException if some inconsistencies of internal representation are discovered."""
         raise NotImplementedError("Method not implemented")
-    
+
+
 class VennEmptyRegion(VennRegion):
-    '''
+    """
     An empty region. To save some memory, returns [self, self] on the subtract_and_intersect_circle operation.
     It is possible to create an empty region with a non-None label position, by providing it in the constructor.
     
@@ -92,24 +98,33 @@ class VennEmptyRegion(VennRegion):
     >>> v = VennEmptyRegion((0, 0))
     >>> v.label_position()
     array([ 0.,  0.])
-    '''
-    def __init__(self, label_pos = None):
+    """
+
+    def __init__(self, label_pos=None):
         self.label_pos = None if label_pos is None else np.asarray(label_pos, float)
+
     def subtract_and_intersect_circle(self, center, radius):
         return [self, self]
+
     def size(self):
         return 0
+
     def label_position(self):
         return self.label_pos
+
     def make_patch(self):
         return None
-    def is_empty(self):  # We use this in tests as an equivalent of isinstance(VennEmptyRegion)
+
+    @staticmethod
+    def is_empty():  # We use this in tests as an equivalent of isinstance(VennEmptyRegion)
         return True
+
     def verify(self):
         pass
 
+
 class VennCircleRegion(VennRegion):
-    '''
+    """
     A circle-shaped region.
     
     >>> vcr = VennCircleRegion((0, 0), 1)
@@ -121,22 +136,23 @@ class VennCircleRegion(VennRegion):
     <matplotlib.patches.Circle object at ...>
     >>> sr, ir = vcr.subtract_and_intersect_circle((0.5, 0), 1)
     >>> assert abs(sr.size() + ir.size() - vcr.size()) < tol
-    '''
+    """
     
     def __init__(self, center, radius):
         self.center = np.asarray(center, float)
         self.radius = abs(radius)
-        if (radius < -tol):
+        if radius < -tol:
             raise VennRegionException("Circle with a negative radius is invalid")
     
     def subtract_and_intersect_circle(self, center, radius):
-        '''Will throw a VennRegionException if the circle to be subtracted is completely inside and not touching the given region.'''
+        """Will throw a VennRegionException if the circle to be subtracted
+        is completely inside and not touching the given region."""
         
         # Check whether the target circle intersects us
         center = np.asarray(center, float)
         d = np.linalg.norm(center - self.center)
         if d > (radius + self.radius - tol):
-            return [self, VennEmptyRegion()] # The circle does not intersect us
+            return [self, VennEmptyRegion()]  # The circle does not intersect us
         elif d < tol:
             if radius > self.radius - tol:
                 # We are completely covered by that circle or we are the same circle
@@ -153,8 +169,9 @@ class VennCircleRegion(VennRegion):
                 raise VennRegionException("Invalid configuration of circular regions (holes are not supported).")
             elif np.all(abs(intersections[0] - intersections[1]) < tol) and self.radius < radius:
                 # There is a single intersection point (i.e. we are touching the circle),
-                # the circle to be subtracted is not outside of us (this was checked before), and is larger than us.
-                # This is a particular corner case that is not dealt with correctly by the general-purpose code below and must
+                # the circle to be subtracted is not outside of us (this was checked before),
+                # and is larger than us. This is a particular corner case that
+                # is not dealt with correctly by the general-purpose code below and must
                 # be handled separately
                 return [VennEmptyRegion(), self]
             else:
@@ -183,29 +200,29 @@ class VennCircleRegion(VennRegion):
                 return [subtraction, intersection]
     
     def size(self):
-        '''
+        """
         Return the area of the circle
         
         >>> VennCircleRegion((0, 0), 1).size()
         3.1415...
         >>> VennCircleRegion((0, 0), 2).size()
         12.56637...
-        '''
+        """
         return np.pi * self.radius**2;
     
     def label_position(self):
-        '''
+        """
         The label should be positioned in the center of the circle
         
         >>> VennCircleRegion((0, 0), 1).label_position()
         array([ 0.,  0.])
         >>> VennCircleRegion((-1.2, 3.4), 1).label_position()
         array([-1.2,  3.4])
-        '''
+        """
         return self.center
     
     def make_patch(self):
-        '''
+        """
         Returns the corresponding circular patch.
         
         >>> patch = VennCircleRegion((1, 2), 3).make_patch()
@@ -213,7 +230,7 @@ class VennCircleRegion(VennRegion):
         <matplotlib.patches.Circle object at ...>
         >>> patch.center, patch.radius
         (array([ 1.,  2.]), 3.0)
-        '''
+        """
         return Circle(self.center, self.radius)
 
     def verify(self):
@@ -221,14 +238,14 @@ class VennCircleRegion(VennRegion):
     
 
 class VennArcgonRegion(VennRegion):
-    '''
+    """
     A poly-arc region.
     Note that we essentially only support 2, 3 and 4 arced regions,
     whereas intersections and subtractions only work for 2-arc regions.
-    '''
+    """
     
     def __init__(self, arcs):
-        '''
+        """
         Create a poly-arc region given a list of Arc objects.        
         The arcs list must be of length 2, 3 or 4.
         The arcs must form a closed polygon, i.e. the last point of each arc must be the first point of the next arc.
@@ -236,21 +253,24 @@ class VennArcgonRegion(VennRegion):
         
         This is not verified in the constructor, but a special verify() method can be used to check
         for validity.
-        '''
+        """
         self.arcs = arcs
         
     def verify(self):
-        '''
+        """
         Verify the correctness of the region arcs. Throws an VennRegionException if verification fails
         (or any other exception if it happens during verification).
-        '''
+        """
         # Verify size of arcs list
-        if (len(self.arcs) < 2):
+
+        if len(self.arcs) < 2:
             raise VennRegionException("At least two arcs needed in a poly-arc region")
-        if (len(self.arcs) > 4):
+        if len(self.arcs) > 4:
             raise VennRegionException("At most 4 arcs are supported currently for poly-arc regions")
-        
-        TRIG_TOL = 100*tol  # We need to use looser tolerance level here because conversion to angles and back is prone to large errors.
+
+        # We need to use looser tolerance level here because
+        # conversion to angles and back is prone to large errors.
+        TRIG_TOL = 100*tol
         # Verify connectedness of arcs
         for i in range(len(self.arcs)):
             if not np.all(self.arcs[i-1].end_point() - self.arcs[i].start_point() < TRIG_TOL):
@@ -261,7 +281,8 @@ class VennArcgonRegion(VennRegion):
             for j in range(i+1, len(self.arcs)):
                 ips = self.arcs[i].intersect_arc(self.arcs[j])
                 for ip in ips:
-                    if not (np.all(abs(ip - self.arcs[i].start_point()) < TRIG_TOL) or np.all(abs(ip - self.arcs[i].end_point()) < TRIG_TOL)):
+                    if (not (np.all(abs(ip - self.arcs[i].start_point()) < TRIG_TOL) or
+                                 np.all(abs(ip - self.arcs[i].end_point()) < TRIG_TOL))):
                         raise VennRegionException("Arcs of a poly-arc-gon may only intersect at endpoints")
                 
                 if len(ips) != 0 and (i - j) % len(self.arcs) > 1 and (j - i) % len(self.arcs) > 1:
@@ -269,27 +290,37 @@ class VennArcgonRegion(VennRegion):
                     # may occasionally happen when all arcs inbetween have length 0.
                     pass # raise VennRegionException("Non-consecutive arcs of a poly-arc-gon may not intersect")
         
-        # Verify that vertices are ordered so that at each point the direction along the polyarc changes towards the left.
+        # Verify that vertices are ordered so that at each point the direction along the polyarc
+        # changes towards the left.
         # Note that this test only makes sense for polyarcs obtained using circle intersections & subtractions.
-        # A "flower-like" polyarc may have its vertices ordered counter-clockwise yet the direction would turn to the right at each of them.
+        # A "flower-like" polyarc may have its vertices ordered counter-clockwise yet the direction
+        # would turn to the right at each of them.
+
         for i in range(len(self.arcs)):
             prev_arc = self.arcs[i-1]
             cur_arc = self.arcs[i]
-            if box_product(prev_arc.direction_vector(prev_arc.to_angle), cur_arc.direction_vector(cur_arc.from_angle)) < -tol:
-                raise VennRegionException("Arcs must be ordered so that the direction at each vertex changes counter-clockwise")
+            if box_product(prev_arc.direction_vector(prev_arc.to_angle),
+                           cur_arc.direction_vector(cur_arc.from_angle)) < -tol:
+                raise VennRegionException(
+                    "Arcs must be ordered so that the direction at each vertex changes counter-clockwise")
         
     def subtract_and_intersect_circle(self, center, radius):
-        '''
+        """
         Circle subtraction / intersection only supported by 2-gon regions, otherwise a VennRegionException is thrown.
-        In addition, such an exception will be thrown if the circle to be subtracted is completely within the region and forms a "hole".
+        In addition, such an exception will be thrown if the circle to be subtracted is completely within
+        the region and forms a "hole".
         
-        The result may be either a VennArcgonRegion or a VennMultipieceRegion (the latter happens when the circle "splits" a crescent in two).
-        '''
+        The result may be either a VennArcgonRegion or a VennMultipieceRegion (the latter happens
+        when the circle "splits" a crescent in two).
+        """
+
         if len(self.arcs) != 2:
-            raise VennRegionException("Circle subtraction and intersection with poly-arc regions is currently only supported for 2-arc-gons.")
+            raise VennRegionException(
+                "Circle subtraction and intersection with poly-arc regions is currently only supported for 2-arc-gons.")
         
         # In the following we consider the 2-arc-gon case.
-        # Before we do anything, we check for a special case, where the circle of interest is one of the two circles forming the arcs.
+        # Before we do anything, we check for a special case, where the circle of interest is one
+        # of the two circles forming the arcs.
         # In this case we can determine the answer quite easily.
         matching_arcs = [a for a in self.arcs if a.lies_on_circle(center, radius)]
         if len(matching_arcs) != 0:
@@ -317,14 +348,16 @@ class VennArcgonRegion(VennRegion):
                 
 
         # There must be an even number of those points in total.
-        # (If this is not the case, then we have an unfortunate case with weird numeric errors [TODO: find examples and deal with it?]).
+        # (If this is not the case, then we have an unfortunate case with weird numeric errors
+        # [TODO: find examples and deal with it?]).
         # There are three possibilities with the following subcases:
         #   I. No intersection points
         #       a) The polyarc is completely within the circle.
         #           result = [ empty, self ]
         #       b) The polyarc is completely outside the circle.
         #           result = [ self, empty ]
-        #   II. Four intersection points, two for each arc. Points x1, x2 for arc X and y1, y2 for arc Y, ordered along the arc.
+        #   II. Four intersection points, two for each arc. Points x1, x2 for arc X and y1, y2 for arc Y,
+        #       ordered along the arc.
         #       a) The polyarc endpoints are both outside the circle.
         #           result_subtraction = a combination of two 3-arc polyarcs:
         #               1: {X - start to x1,
@@ -334,7 +367,8 @@ class VennArcgonRegion(VennRegion):
         #                   y1 to x2 along circle (negative direction)),
         #                   X - x2 to end}
         #       b) The polyarc endpoints are both inside the circle
-        #               same as above, but the "along circle" arc directions are flipped and subtraction/intersection parts are exchanged
+        #               same as above, but the "along circle" arc directions are flipped and
+        #               subtraction/intersection parts are exchanged
         #   III. Two intersection points
         #       a) One arc, X, has two intersection points i & j, another arc, Y, has no intersection points
         #           a.1) Polyarc endpoints are outside the circle
@@ -343,10 +377,13 @@ class VennArcgonRegion(VennRegion):
         #           a.2) Polyarc endpoints are inside the circle
         #               result_subtraction = {X i to j, circle j to i negative}
         #               result_intersection = {X 0 to i, circle i to j positive, X j to end, Y}
-        #       b) Both arcs, X and Y, have one intersection point each. In this case one of the arc endpoints must be inside circle, another outside.
+        #       b) Both arcs, X and Y, have one intersection point each.
+        #          In this case one of the arc endpoints must be inside circle, another outside.
         #          call the arc that starts with the outside point X, the other arc Y.
-        #           result_subtraction = {X start to intersection, intersection to intersection along circle (negative direction), Y from intersection to end}
-        #           result_intersection = {X intersection to end, Y start to intersecton, intersection to intersecion along circle (positive)}
+        #           result_subtraction = {X start to intersection, intersection to intersection along circle
+        #                                 (negative direction), Y from intersection to end}
+        #           result_intersection = {X intersection to end, Y start to intersecton,
+        #                                  intersection to intersecion along circle (positive)}
         center = np.asarray(center)
         intersections = [a.intersect_circle(center, radius) for a in self.arcs]
         
@@ -469,10 +506,10 @@ class VennArcgonRegion(VennRegion):
             return avg / np.sum(lengths)
     
     def size(self):
-        '''Return the area of the patch.
+        """Return the area of the patch.
         
         The area can be computed using the standard polygon area formula + signed segment areas of each arc.
-        '''
+        """
         polygon_area = 0
         for a in self.arcs:
             polygon_area += box_product(a.start_point(), a.end_point())
@@ -480,9 +517,9 @@ class VennArcgonRegion(VennRegion):
         return polygon_area + sum([a.sign * a.segment_area() for a in self.arcs])
     
     def make_patch(self):
-        '''
+        """
         Retuns a matplotlib PathPatch representing the current region.
-        '''
+        """
         path = [self.arcs[0].start_point()]
         for a in self.arcs:
             if a.direction:
@@ -497,26 +534,26 @@ class VennArcgonRegion(VennRegion):
 
 
 class VennMultipieceRegion(VennRegion):
-    '''
+    """
     A region containing several pieces.
     In principle, any number of pieces is supported,
     although no more than 2 should ever be needed in a 3-circle Venn diagram.
     Although subtraction/intersection are straightforward to implement we do
     not need those for matplotlib-venn, we raise exceptions in those methods.
-    '''
+    """
     
     def __init__(self, pieces):
-        '''
+        """
         Create a multi-piece region from a list of VennRegion objects.
         The list may be empty or contain a single item (although those regions can be converted to a
         VennEmptyRegion or a single region of the necessary type.
-        '''
+        """
         self.pieces = pieces
         
     def label_position(self):
-        '''
+        """
         Find the largest region and position the label in that.
-        '''
+        """
         reg_sizes = [(r.size(), r) for r in self.pieces]
         reg_sizes.sort()
         return reg_sizes[-1][1].label_position()
@@ -525,8 +562,8 @@ class VennMultipieceRegion(VennRegion):
         return sum([p.size() for p in self.pieces])
     
     def make_patch(self):
-        '''Currently only works if all the pieces are Arcgons.
-           In this case returns a multiple-piece path. Otherwise throws an exception.'''
+        """Currently only works if all the pieces are Arcgons.
+           In this case returns a multiple-piece path. Otherwise throws an exception."""
         paths = [p.make_patch().get_path() for p in self.pieces]
         vertices = np.concatenate([p.vertices for p in paths])
         codes = np.concatenate([p.codes for p in paths])

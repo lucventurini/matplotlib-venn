@@ -1,4 +1,4 @@
-'''
+"""
 Venn diagram plotting routines.
 Three-circle venn plotter.
 
@@ -6,14 +6,9 @@ Copyright 2012, Konstantin Tretyakov.
 http://kt.era.ee/
 
 Licensed under MIT license.
-'''
+"""
 import numpy as np
-import warnings
-from collections import Counter
-
 from matplotlib.patches import Circle, PathPatch
-from matplotlib.path import Path
-from matplotlib.colors import ColorConverter
 from matplotlib.pyplot import gca
 
 from matplotlib_venn._math import *
@@ -21,54 +16,8 @@ from matplotlib_venn._common import *
 from matplotlib_venn._region import VennCircleRegion, VennEmptyRegion
 
 
-def compute_venn3_areas(diagram_areas, normalize_to=1.0, _minimal_area=1e-6):
-    '''
-    The list of venn areas is given as 7 values, corresponding to venn diagram areas in the following order:
-     (Abc, aBc, ABc, abC, AbC, aBC, ABC)
-    (i.e. last element corresponds to the size of intersection A&B&C).
-    The return value is a list of areas (A_a, A_b, A_c, A_ab, A_bc, A_ac, A_abc),
-    such that the total area of all circles is normalized to normalize_to.
-    If the area of any circle is smaller than _minimal_area, makes it equal to _minimal_area.
-
-    Assumes all input values are nonnegative (to be more precise, all areas are passed through and abs() function)
-    >>> compute_venn3_areas((1, 1, 0, 1, 0, 0, 0))
-    (0.33..., 0.33..., 0.33..., 0.0, 0.0, 0.0, 0.0)
-    >>> compute_venn3_areas((0, 0, 0, 0, 0, 0, 0))
-    (1e-06, 1e-06, 1e-06, 0.0, 0.0, 0.0, 0.0)
-    >>> compute_venn3_areas((1, 1, 1, 1, 1, 1, 1), normalize_to=7)
-    (4.0, 4.0, 4.0, 2.0, 2.0, 2.0, 1.0)
-    >>> compute_venn3_areas((1, 2, 3, 4, 5, 6, 7), normalize_to=56/2)
-    (16.0, 18.0, 22.0, 10.0, 13.0, 12.0, 7.0)
-    '''
-    # Normalize input values to sum to 1
-    areas = np.array(np.abs(diagram_areas), float)
-    total_area = np.sum(areas)
-    if np.abs(total_area) < _minimal_area:
-        warnings.warn("All circles have zero area")
-        return (1e-06, 1e-06, 1e-06, 0.0, 0.0, 0.0, 0.0)
-    else:
-        areas = areas / total_area * normalize_to
-        A_a = areas[0] + areas[2] + areas[4] + areas[6]
-        if A_a < _minimal_area:
-            warnings.warn("Circle A has zero area")
-            A_a = _minimal_area
-        A_b = areas[1] + areas[2] + areas[5] + areas[6]
-        if A_b < _minimal_area:
-            warnings.warn("Circle B has zero area")
-            A_b = _minimal_area
-        A_c = areas[3] + areas[4] + areas[5] + areas[6]
-        if A_c < _minimal_area:
-            warnings.warn("Circle C has zero area")
-            A_c = _minimal_area
-
-        # Areas of the three intersections (ab, ac, bc)
-        A_ab, A_ac, A_bc = areas[2] + areas[6], areas[4] + areas[6], areas[5] + areas[6]
-
-        return (A_a, A_b, A_c, A_ab, A_bc, A_ac, areas[6])
-
-
-def solve_venn3_circles(venn_areas):
-    '''
+def solve_venn4_circles(venn_areas):
+    """
     Given the list of "venn areas" (as output from compute_venn3_areas, i.e. [A, B, C, AB, BC, AC, ABC]),
     finds the positions and radii of the three circles.
     The return value is a tuple (coords, radii), where coords is a 3x2 array of coordinates and
@@ -80,13 +29,13 @@ def solve_venn3_circles(venn_areas):
     The overall match is only approximate (to be precise, what is matched are the areas of the circles and the
     three pairwise intersections).
 
-    >>> c, r = solve_venn3_circles((1, 1, 1, 0, 0, 0, 0))
+    >>> c, r = solve_venn4_circles((1, 1, 1, 0, 0, 0, 0))
     >>> np.round(r, 3)
     array([ 0.564,  0.564,  0.564])
-    >>> c, r = solve_venn3_circles(compute_venn3_areas((1, 2, 40, 30, 4, 40, 4)))
+    >>> c, r = solve_venn4_circles(compute_venn3_areas((1, 2, 40, 30, 4, 40, 4)))
     >>> np.round(r, 3)
     array([ 0.359,  0.476,  0.453])
-    '''
+    """
     (A_a, A_b, A_c, A_ab, A_bc, A_ac, A_abc) = list(map(float, venn_areas))
     r_a, r_b, r_c = np.sqrt(A_a / np.pi), np.sqrt(A_b / np.pi), np.sqrt(A_c / np.pi)
     intersection_areas = [A_ab, A_bc, A_ac]
@@ -153,7 +102,7 @@ def solve_venn3_circles(venn_areas):
 
 
 def position_venn3_circles_generic(radii, dists):
-    '''
+    """
     Given radii = (r_a, r_b, r_c) and distances between the circles = (d_ab, d_bc, d_ac),
     finds the coordinates of the centers for the three circles so that they form a proper triangle.
     The current positioning method puts the center of A and B on a horizontal line y==0,
@@ -169,7 +118,7 @@ def position_venn3_circles_generic(radii, dists):
     array([[ 0.        ,  0.        ],
            [ 2.        ,  0.        ],
            [ 1.        , -1.73205081]])
-    '''
+    """
     (d_ab, d_bc, d_ac) = dists
     (r_a, r_b, r_c) = radii
     coords = np.array([[0, 0], [d_ab, 0], [0, 0]], float)
@@ -179,16 +128,16 @@ def position_venn3_circles_generic(radii, dists):
     return coords
 
 
-def compute_venn3_regions(centers, radii):
-    '''
+def compute_venn4_regions(centers, radii):
+    """
     Given the 3x2 matrix with circle center coordinates, and a 3-element list (or array) with circle radii [as returned from solve_venn3_circles],
     returns the 7 regions, comprising the venn diagram, as VennRegion objects.
 
     Regions are returned in order (Abc, aBc, ABc, abC, AbC, aBC, ABC)
 
-    >>> centers, radii = solve_venn3_circles((1, 1, 1, 1, 1, 1, 1))
-    >>> regions = compute_venn3_regions(centers, radii)
-    '''
+    >>> centers, radii = solve_venn4_circles((1, 1, 1, 1, 1, 1, 1))
+    >>> regions = compute_venn4_regions(centers, radii)
+    """
     A = VennCircleRegion(centers[0], radii[0])
     B = VennCircleRegion(centers[1], radii[1])
     C = VennCircleRegion(centers[2], radii[2])
@@ -198,75 +147,37 @@ def compute_venn3_regions(centers, radii):
     aB, _ = B.subtract_and_intersect_circle(A.center, A.radius)
     aBc, aBC = aB.subtract_and_intersect_circle(C.center, C.radius)
     aC, _ = C.subtract_and_intersect_circle(A.center, A.radius)
-    abC, _ = aC.subtract_and_intersect_circle(B.center, B.radius)
+    abC, _ = aC.subtract_and_intersect_circle(B.center, B.radius)    
     return [Abc, aBc, ABc, abC, AbC, aBC, ABC]
 
 
-def compute_venn3_colors(set_colors):
-    '''
+def compute_venn4_colors(set_colors):
+    """
     Given three base colors, computes combinations of colors corresponding to all regions of the venn diagram.
     returns a list of 7 elements, providing colors for regions (100, 010, 110, 001, 101, 011, 111).
 
-    >>> compute_venn3_colors(['r', 'g', 'b'])
+    >>> compute_venn4_colors(['r', 'g', 'b', 'y'])
     (array([ 1.,  0.,  0.]),..., array([ 0.4,  0.2,  0.4]))
-    '''
+    """
     ccv = ColorConverter()
     base_colors = [np.array(ccv.to_rgb(c)) for c in set_colors]
-    return (base_colors[0], base_colors[1], mix_colors(base_colors[0], base_colors[1]), base_colors[2],
-            mix_colors(base_colors[0], base_colors[2]), mix_colors(base_colors[1], base_colors[2]), mix_colors(base_colors[0], base_colors[1], base_colors[2]))
+    return (base_colors[0],
+            base_colors[1],
+            mix_colors(base_colors[0], base_colors[1]),
+            base_colors[2],
+            mix_colors(base_colors[0], base_colors[2]),
+            mix_colors(base_colors[1], base_colors[2]),
+            mix_colors(base_colors[0], base_colors[1], base_colors[2]))
 
 
-def compute_venn3_subsets(a, b, c):
-    '''
-    Given three set or Counter objects, computes the sizes of (a & ~b & ~c, ~a & b & ~c, a & b & ~c, ....),
-    as needed by the subsets parameter of venn3 and venn3_circles.
-    Returns the result as a tuple.
-
-    >>> compute_venn3_subsets(set([1,2,3]), set([2,3,4]), set([3,4,5,6]))
-    (1, 0, 1, 2, 0, 1, 1)
-    >>> compute_venn3_subsets(Counter([1,2,3]), Counter([2,3,4]), Counter([3,4,5,6]))
-    (1, 0, 1, 2, 0, 1, 1)
-    >>> compute_venn3_subsets(Counter([1,1,1]), Counter([1,1,1]), Counter([1,1,1,1]))
-    (0, 0, 0, 1, 0, 0, 3)
-    >>> compute_venn3_subsets(Counter([1,1,2,2,3,3]), Counter([2,2,3,3,4,4]), Counter([3,3,4,4,5,5,6,6]))
-    (2, 0, 2, 4, 0, 2, 2)
-    >>> compute_venn3_subsets(Counter([1,2,3]), Counter([2,2,3,3,4,4]), Counter([3,3,4,4,4,5,5,6]))
-    (1, 1, 1, 4, 0, 3, 1)
-    >>> compute_venn3_subsets(set([]), set([]), set([]))
-    (0, 0, 0, 0, 0, 0, 0)
-    >>> compute_venn3_subsets(set([1]), set([]), set([]))
-    (1, 0, 0, 0, 0, 0, 0)
-    >>> compute_venn3_subsets(set([]), set([1]), set([]))
-    (0, 1, 0, 0, 0, 0, 0)
-    >>> compute_venn3_subsets(set([]), set([]), set([1]))
-    (0, 0, 0, 1, 0, 0, 0)
-    >>> compute_venn3_subsets(Counter([]), Counter([]), Counter([1]))
-    (0, 0, 0, 1, 0, 0, 0)
-    >>> compute_venn3_subsets(set([1]), set([1]), set([1]))
-    (0, 0, 0, 0, 0, 0, 1)
-    >>> compute_venn3_subsets(set([1,3,5,7]), set([2,3,6,7]), set([4,5,6,7]))
-    (1, 1, 1, 1, 1, 1, 1)
-    >>> compute_venn3_subsets(Counter([1,3,5,7]), Counter([2,3,6,7]), Counter([4,5,6,7]))
-    (1, 1, 1, 1, 1, 1, 1)
-    >>> compute_venn3_subsets(Counter([1,3,5,7]), set([2,3,6,7]), set([4,5,6,7]))
-    Traceback (most recent call last):
-    ...
-    ValueError: All arguments must be of the same type
-    '''
-    if not (type(a) == type(b) == type(c)):
-        raise ValueError("All arguments must be of the same type")
-    set_size = len if type(a) != Counter else lambda x: sum(x.values())   # We cannot use len to compute the cardinality of a Counter
-    return (set_size(a - (b | c)),  # TODO: This is certainly not the most efficient way to compute.
-        set_size(b - (a | c)),
-        set_size((a & b) - c),
-        set_size(c - (a | b)),
-        set_size((a & c) - b),
-        set_size((b & c) - a),
-        set_size(a & b & c))
-
-
-def venn3_circles(subsets, normalize_to=1.0, alpha=1.0, color='black', linestyle='solid', linewidth=2.0, ax=None, **kwargs):
-    '''
+def venn4_circles(subsets,
+                  normalize_to=1.0,
+                  alpha=1.0,
+                  color='black',
+                  linestyle='solid',
+                  linewidth=2.0,
+                  ax=None, **kwargs):
+    """
     Plots only the three circles for the corresponding Venn diagram.
     Useful for debugging or enhancing the basic venn diagram.
     parameters ``subsets``, ``normalize_to`` and ``ax`` are the same as in venn3()
@@ -274,17 +185,17 @@ def venn3_circles(subsets, normalize_to=1.0, alpha=1.0, color='black', linestyle
     returns a list of three Circle patches.
 
         >>> plot = venn3_circles({'001': 10, '100': 20, '010': 21, '110': 13, '011': 14})
-        >>> plot = venn3_circles([set(['A','B','C']), set(['A','D','E','F']), set(['D','G','H'])])
-    '''
+        >>> plot = venn3_circles([{'A','B','C'}, {'A','D','E','F'}, {'D','G','H'}])
+    """
     # Prepare parameters
     if isinstance(subsets, dict):
         subsets = [subsets.get(t, 0) for t in ['100', '010', '110', '001', '101', '011', '111']]
     elif len(subsets) == 3:
-        subsets = compute_venn3_subsets(*subsets)
-
-    areas = compute_venn3_areas(subsets, normalize_to)
-    centers, radii = solve_venn3_circles(areas)
-
+        subsets = compute_venn_subsets(*subsets)
+        
+    areas = compute_venn_areas(subsets, num_sets=4, normalize_to=normalize_to)
+    centers, radii = solve_venn4_circles(areas)
+    
     if ax is None:
         ax = gca()
     prepare_venn_axes(ax, centers, radii)
@@ -296,10 +207,16 @@ def venn3_circles(subsets, normalize_to=1.0, alpha=1.0, color='black', linestyle
     return result
 
 
-def venn3(subsets, set_labels=('A', 'B', 'C'), set_colors=('r', 'g', 'b'), alpha=0.4, normalize_to=1.0, ax=None):
-    '''Plots a 3-set area-weighted Venn diagram.
+def venn4(subsets,
+          set_labels=('A', 'B', 'C', 'D'),
+          set_colors=('r', 'g', 'b', 'y'),
+          alpha=0.4,
+          normalize_to=1.0,
+          ax=None):
+
+    """Plots a 3-set area-weighted Venn diagram.
     The subsets parameter can be one of the following:
-     - A list (or a tuple), containing three set objects.
+     - A list (or a tuple), containing four set objects.
      - A dict, providing sizes of seven diagram regions.
        The regions are identified via three-letter binary codes ('100', '010', etc), hence a valid set could look like:
        {'001': 10, '010': 20, '110':30, ...}. Unmentioned codes are considered to map to 0.
@@ -318,8 +235,8 @@ def venn3(subsets, set_labels=('A', 'B', 'C'), set_colors=('r', 'g', 'b'), alpha
     The ``ax`` parameter specifies the axes on which the plot will be drawn (None means current axes).
 
     Note: if some of the circles happen to have zero area, you will probably not get a nice picture.
-
-    >>> import matplotlib # (The first two lines prevent the doctest from falling when TCL not installed. Not really necessary in most cases)
+    
+    >>> import matplotlib  # (The first two lines prevent the doctest from falling when TCL not installed. Not really necessary in most cases)
     >>> matplotlib.use('Agg')
     >>> from matplotlib_venn import *
     >>> v = venn3(subsets=(1, 1, 1, 1, 1, 1, 1), set_labels = ('A', 'B', 'C'))
@@ -328,24 +245,29 @@ def venn3(subsets, set_labels=('A', 'B', 'C'), set_colors=('r', 'g', 'b'), alpha
     >>> v.get_patch_by_id('100').set_color('white')
     >>> v.get_label_by_id('100').set_text('Unknown')
     >>> v.get_label_by_id('C').set_text('Set C')
-
+    
     You can provide sets themselves rather than subset sizes:
-    >>> v = venn3(subsets=[set([1,2]), set([2,3,4,5]), set([4,5,6,7,8,9,10,11])])
+    >>> v = venn3(subsets=[{1,2}, {2,3,4,5}, {4,5,6,7,8,9,10,11}])
     >>> print("%0.2f %0.2f %0.2f" % (v.get_circle_radius(0), v.get_circle_radius(1)/v.get_circle_radius(0), v.get_circle_radius(2)/v.get_circle_radius(0)))
     0.24 1.41 2.00
-    >>> c = venn3_circles(subsets=[set([1,2]), set([2,3,4,5]), set([4,5,6,7,8,9,10,11])])
-    '''
+    >>> c = venn3_circles(subsets=[{1,2}, {2,3,4,5}, {4,5,6,7,8,9,10,11}])
+    """
     # Prepare parameters
-    if isinstance(subsets, dict):
-        subsets = [subsets.get(t, 0) for t in ['100', '010', '110', '001', '101', '011', '111']]
-    elif len(subsets) == 3:
-        subsets = compute_venn3_subsets(*subsets)
+    if not isinstance(subsets, dict):
+        subsets = compute_venn_subsets(subsets)
 
-    areas = compute_venn3_areas(subsets, normalize_to)
-    centers, radii = solve_venn3_circles(areas)
-    regions = compute_venn3_regions(centers, radii)
-    colors = compute_venn3_colors(set_colors)
-    
+    subsets = [subsets.get(t, 0) for t in ['1000', '0100', '0010', '0001',
+                                           '1100', '1010', '1001', '0110', '0101', '0011'
+                                           '1110', '1101', '1001', '0111',
+                                           '1111']]
+
+    areas = compute_venn_areas(subsets,
+                               num_sets=4,
+                               normalize_to=normalize_to)
+    colors = compute_venn_colors(set_colors)
+    centers, radii = solve_venn4_circles(areas)
+    regions = compute_venn4_regions(centers, radii)
+
     # Remove regions that are too small from the diagram
     MIN_REGION_SIZE = 1e-4
     for i in range(len(regions)):
@@ -377,7 +299,9 @@ def venn3(subsets, set_labels=('A', 'B', 'C'), set_colors=('r', 'g', 'b'), alpha
 
     # Position labels
     if set_labels is not None:
-        # There are two situations, when set C is not on the same line with sets A and B, and when the three are on the same line.
+        # There are two situations,
+        # when set C is not on the same line with sets A and B,
+        # and when the three are on the same line.
         if abs(centers[2][1] - centers[0][1]) > tol:
             # Three circles NOT on the same line
             label_positions = [centers[0] + np.array([-radii[0] / 2, radii[0]]),

@@ -1,4 +1,4 @@
-'''
+"""
 Venn diagram plotting routines.
 Math helper functions.
 
@@ -6,7 +6,7 @@ Copyright 2012, Konstantin Tretyakov.
 http://kt.era.ee/
 
 Licensed under MIT license.
-'''
+"""
 
 from scipy.optimize import brentq
 import numpy as np
@@ -14,7 +14,7 @@ import numpy as np
 tol = 1e-10
 
 def point_in_circle(pt, center, radius):
-    '''
+    """
     Returns true if a given point is located inside (or on the border) of a circle.
     
     >>> point_in_circle((0, 0), (0, 0), 1)
@@ -23,12 +23,12 @@ def point_in_circle(pt, center, radius):
     True
     >>> point_in_circle((1, 1), (0, 0), 1)
     False
-    '''
+    """
     d = np.linalg.norm(np.asarray(pt) - np.asarray(center))
     return d <= radius
 
 def box_product(v1, v2):
-    '''Returns a determinant |v1 v2|. The value is equal to the signed area of a parallelogram built on v1 and v2.
+    """Returns a determinant |v1 v2|. The value is equal to the signed area of a parallelogram built on v1 and v2.
     The value is positive is v2 is to the left of v1.
     
     >>> box_product((0.0, 1.0), (0.0, 1.0))
@@ -37,12 +37,12 @@ def box_product(v1, v2):
     1.0
     >>> box_product((0.0, 1.0), (1.0, 0.0))
     -1.0
-    '''
+    """
     return v1[0]*v2[1] - v1[1]*v2[0]
 
 
 def circle_intersection_area(r, R, d):
-    '''
+    """
     Formula from: http://mathworld.wolfram.com/Circle-CircleIntersection.html
     Does not make sense for negative r, R or d
 
@@ -52,7 +52,7 @@ def circle_intersection_area(r, R, d):
     3.1415...
     >>> circle_intersection_area(1.0, 1.0, 1.0)
     1.2283...
-    '''
+    """
     if np.abs(d) < tol:
         minR = np.min([r, R])
         return np.pi * minR**2
@@ -72,7 +72,7 @@ def circle_intersection_area(r, R, d):
 
 
 def circle_line_intersection(center, r, a, b):
-    '''
+    """
     Computes two intersection points between the circle centered at <center> and radius <r> and a line given by two points a and b.
     If no intersection exists, or if a==b, None is returned. If one intersection exists, it is repeated in the answer.
 
@@ -82,7 +82,7 @@ def circle_line_intersection(center, r, a, b):
     >>> abs(np.round(circle_line_intersection(np.array([1.0, 1.0]), np.sqrt(2), np.array([-1.0, 1.0]), np.array([1.0, -1.0])), 6))
     array([[ 0.,  0.],
            [ 0.,  0.]])
-    '''
+    """
     s = b - a
     # Quadratic eqn coefs
     A = np.linalg.norm(s)**2
@@ -99,7 +99,7 @@ def circle_line_intersection(center, r, a, b):
 
 
 def find_distance_by_area(r, R, a, numeric_correction=0.0001):
-    '''
+    """
     Solves circle_intersection_area(r, R, d) == a for d numerically (analytical solution seems to be too ugly to pursue).
     Assumes that a < pi * min(r, R)**2, will fail otherwise.
 
@@ -117,7 +117,8 @@ def find_distance_by_area(r, R, a, numeric_correction=0.0001):
     4.0
     >>> find_distance_by_area(1, 2, np.pi)
     1.0001
-    '''
+    """
+
     if r > R:
         r, R = R, r
     if np.abs(a) < tol:
@@ -128,7 +129,7 @@ def find_distance_by_area(r, R, a, numeric_correction=0.0001):
 
 
 def circle_circle_intersection(C_a, r_a, C_b, r_b):
-    '''
+    """
     Finds the coordinates of the intersection points of two circles A and B.
     Circle center coordinates C_a and C_b, should be given as tuples (or 1x2 arrays).
     Returns a 2x2 array result with result[0] being the first intersection point (to the right of the vector C_a -> C_b)
@@ -152,7 +153,7 @@ def circle_circle_intersection(C_a, r_a, C_b, r_b):
     True
     >>> circle_circle_intersection([0, 0], 1, [2.1, 0], 1) is None # No intersections (one circle outside another)
     True
-    '''
+    """
     C_a, C_b = np.asarray(C_a, float), np.asarray(C_b, float)
     v_ab = C_b - C_a
     d_ab = np.linalg.norm(v_ab)
@@ -176,7 +177,7 @@ def circle_circle_intersection(C_a, r_a, C_b, r_b):
 
 
 def vector_angle_in_degrees(v):
-    '''
+    """
     Given a vector, returns its elevation angle in degrees (-180..180).
 
     >>> vector_angle_in_degrees([1, 0])
@@ -195,12 +196,12 @@ def vector_angle_in_degrees(v):
     -90.0
     >>> vector_angle_in_degrees([1, -1])
     -45.0
-    '''
+    """
     return np.arctan2(v[1], v[0]) * 180 / np.pi
 
 
 def normalize_by_center_of_mass(coords, radii):
-    '''
+    """
     Given coordinates of circle centers and radii, as two arrays,
     returns new coordinates array, computed such that the center of mass of the
     three circles is (0, 0).
@@ -213,7 +214,7 @@ def normalize_by_center_of_mass(coords, radii):
     array([[-1., -1.],
            [ 1., -1.],
            [ 0.,  1.]])
-    '''
+    """
     # Now find the center of mass.
     radii = radii**2
     sum_r = np.sum(radii)

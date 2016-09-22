@@ -1,4 +1,4 @@
-'''
+"""
 Venn diagram plotting routines.
 Utility routines
 
@@ -6,12 +6,19 @@ Copyright 2012, Konstantin Tretyakov.
 http://kt.era.ee/
 
 Licensed under MIT license.
-'''
+"""
+
 from matplotlib_venn._venn2 import venn2, compute_venn2_subsets
 from matplotlib_venn._venn3 import venn3, compute_venn3_subsets
 
 
-def venn2_unweighted(subsets, set_labels=('A', 'B'), set_colors=('r', 'g'), alpha=0.4, normalize_to=1.0, subset_areas=(1, 1, 1), ax=None):
+def venn2_unweighted(subsets,
+                     set_labels=('A', 'B'),
+                     set_colors=('r', 'g'),
+                     alpha=0.4,
+                     normalize_to=1.0,
+                     subset_areas=(1, 1, 1),
+                     ax=None):
     '''
     The version of venn2 without area-weighting.
     It is implemented as a wrapper around venn2. Namely, venn2 is invoked as usual, but with all subset areas
@@ -35,7 +42,13 @@ def venn2_unweighted(subsets, set_labels=('A', 'B'), set_colors=('r', 'g'), alph
     return v
 
 
-def venn3_unweighted(subsets, set_labels=('A', 'B', 'C'), set_colors=('r', 'g', 'b'), alpha=0.4, normalize_to=1.0, subset_areas=(1, 1, 1, 1, 1, 1, 1), ax=None):
+def venn3_unweighted(subsets,
+                     set_labels=('A', 'B', 'C'),
+                     set_colors=('r', 'g', 'b'),
+                     alpha=0.4,
+                     normalize_to=1.0,
+                     subset_areas=(1, 1, 1, 1, 1, 1, 1),
+                     ax=None):
     '''
     The version of venn3 without area-weighting.
     It is implemented as a wrapper around venn3. Namely, venn3 is invoked as usual, but with all subset areas
